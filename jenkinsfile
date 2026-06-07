@@ -11,7 +11,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 git branch: 'main',
-                    url: 'https://github.com/annapoorna-k/DEV-PROJECT/git'
+                    url: 'https://github.com/annapoorna-k/DEV-PROJECT.git'
             }
         }
 
@@ -43,7 +43,9 @@ pipeline {
             steps {
                 sh """
                 docker push ${DOCKER_IMAGE}:${IMAGE_TAG}
+
                 docker tag ${DOCKER_IMAGE}:${IMAGE_TAG} ${DOCKER_IMAGE}:latest
+
                 docker push ${DOCKER_IMAGE}:latest
                 """
             }
@@ -52,8 +54,10 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 sh """
+                kubectl get nodes
+
                 kubectl set image deployment/studenthub \
-                studenthub=${DOCKER_IMAGE}:${IMAGE_TAG}
+                studenthub=${DOCKER_IMAGE}:${IMAGE_TAG} --record
 
                 kubectl rollout status deployment/studenthub
                 """
@@ -63,10 +67,13 @@ pipeline {
 
     post {
         success {
+            sh 'docker logout'
             echo 'Deployment Successful'
         }
 
         failure {
+            sh 'kubectl rollout undo deployment/studenthub || true'
+            sh 'docker logout || true'
             echo 'Pipeline Failed'
         }
     }
